@@ -1,7 +1,8 @@
 from __future__ import print_function
-from flask import Flask, request, redirect, make_response
+from flask import Flask, request, redirect, make_response, jsonify
 import random
 import string
+import json
 
 app = Flask(__name__)
 
@@ -46,82 +47,67 @@ def get_newSession():
     new_sid = new_session.getSID()
     sessions[new_sid] = new_session
     app.logger.debug('Added session '+new_sid+' with user '+new_user)
-    response = make_response(redirect('/session/' + new_sid))
-    response.set_cookie(new_sid,new_user)
-    return response
+    # response = make_response(redirect('/session/' + new_sid))
+    return jsonify(sid=new_sid, uid=new_user, status="ok")
     # return "New User. ID:" + new_user + "\nSession ID:" + new_sid
 
-@app.route('/session/<sid>')
-def get_showSession(sid):
-    username = request.cookies.get(sid)
-    if sid in sessions and username in sessions.get(sid,None).users:
-        return "authorized"
-    else:
-        return "unauthorized"
-
-@app.route('/end/<sid>')
+@app.route('/end', methods=['POST'])
 def delete_Session(sid):
-    username = request.cookies.get(sid)
+    # username = request.cookies.get(sid)
+    username = request.get_json()['uid']
+    sid = request.get_json()['sid']
     if sid in sessions and username in sessions[sid].users:
         app.logger.debug('Removing user ' + username + ' from session ' + sid)
         sessions[sid].users.remove(username)
         if not sessions[sid].users:
             app.logger.debug('No users left, removing session ' + sid)
             del sessions[sid]
-        response = make_response("ok")
-        response.set_cookie(sid,'',expires=0) #remove cookie
-        return response
+        return jsonify(status="ok")
     else:
-        return "no", 401
+        return jsonify(status="fail")
 
-@app.route('/generate/<sid>')
-def get_token(sid):
-    username = request.cookies.get(sid)
+@app.route('/generate', methods=['POST'])
+def get_token():
+    sid = request.get_json()['sid']
+    username = request.get_json()['uid']
     if sid in sessions and username in sessions[sid].users:
         new_token = sessions[sid].generateToken()
         app.logger.debug('Generating token ' + new_token)
-        return sid + "/" + new_token
+        return jsonify(sid=sid, token=new_token, status="ok")
     else:
-        return "no"
+        return jsonify(status="fail")
 
-@app.route('/enter/<sid>/<token>')
-def join_session(sid, token):
-    username = request.cookies.get(sid)
-    if sid in sessions and username in sessions[sid].users:
-        sessions[sid].tokens.remove(token)
-        sessions[sid].users.remove(username)
-        new_user = sessions[sid].addUser()
-        response = make_response(redirect('/session/' + sid))
-        response.set_cookie(sid,new_user)
-        app.logger.debug('Revoking token ' + token + ', changing user ' + username + ' to ' + new_user + ' to session ' + sid)
-        return response
-    elif sid in sessions and token in sessions[sid].tokens:
+@app.route('/enter', methods = ['POST'])
+def join_session():
+    sid = request.get_json()['sid']
+    token = request.get_json()['token']
+    if sid in sessions and token in sessions[sid].tokens:
         sessions[sid].tokens.remove(token)
         new_user = sessions[sid].addUser()
-        response = make_response(redirect('/session/' + sid))
-        response.set_cookie(sid,new_user)
         app.logger.debug('Revoking token ' + token + ', adding user ' + new_user + ' to session ' + sid)
-        return response
+        return jsonify(sid=sid, uid=new_user, status="ok")
     else:
-        return "unauthorized"
+        return jsonify(status="fail")
 
-@app.route('/pull/<sid>')
-def get_data(sid):
-    username = request.cookies.get(sid)
+@app.route('/pull', methods = ['POST'])
+def get_data():
+    sid = request.get_json()['sid']
+    username = request.get_json()['uid']
     if sid in sessions and username in sessions[sid].users:
-        return (sessions[sid].data, sessions[sid].revision)
+        return jsonify(data=sessions[sid].data, revision=sessions[sid].revision, status="ok")
     else:
-        return "unauthorized"
+        return jsonify(status="fail")
 
-@app.route('/push/<sid>', methods = ['POST'])
-def post_data(sid):
-    username = request.cookies.get(sid)
+@app.route('/push', methods = ['POST'])
+def post_data():
+    sid = request.get_json()['sid']
+    username = request.get_json()['uid']
     if sid in sessions and username in sessions[sid].users:
-        new_revision = sessions[sid].setData(request.form['data'],request.form['revision'])
+        new_revision = sessions[sid].setData(request.get_json()['data'],request.get_json()['revision'])
         if new_revision:
-            return new_revision
+            return jsonify(revision=new_revision, status="ok")
         else:
-            return "failed"
+            return jsonify(status="fail")
 
 if __name__ == '__main__':
     app.debug = True #auto-reload on code changes
