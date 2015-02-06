@@ -55,8 +55,7 @@ def get_newSession():
 
 @app.route('/end', methods=['GET'])
 @crossdomain(origin='*')
-def delete_Session(sid):
-    # username = request.cookies.get(sid)
+def delete_Session():
     username = request.args['uid']
     sid = request.args['sid']
     if sid in sessions and username in sessions[sid].users:
