@@ -14,94 +14,61 @@ All non-data actions are initiated by the client only, which means a server can 
 
 A session consists of a session id, a list of authorized user ids, and a list of active tokens with an expiration timestamp, all of which (except for the timestamp, of course) are pseudorandom and unique to the session. A session id could also be non-random.
 
-Client:
-
-    {
-        "action": "new"
-    }
+Client: `GET /new`
 
 Server:
 
     {
         "status": "ok",
-        "session": "7a33fceb",
-        "user": "f648daf2"
+        "sid": "7a33fceb",
+        "uid": "f648daf2"
     }
 
-Client:
-
-    {
-        "action": "push",
-        "data": "..."
-        "session": "7a33fceb",
-        "user": "f648daf2"
-    }
+Client: `GET /push?sid=7a33fceb&uid=f648daf2&data=...`
 
 Server:
 
     {
         "status": "ok",
+        "revision": 1
     }
 
-Client:
-
-    {
-        "action": "add-client",
-        "session": "7a33fceb",
-        "user": "f648daf2"
-    }
+Client: `GET /generate?sid=7a33fceb&uid=f648daf2`
 
 Server:
 
     {
         "status": "ok",
         "token": "55148",
-        "timeout": "1422982970",
-        "session": "7a33fceb"
+        "sid": "7a33fceb"
     }
 
-Client 2:
-
-    {
-        "action": "join",
-        "session": "7a33fceb",
-        "token": "55148"
-    }
+Client 2: `GET /enter?sid=7a33fceb&token=55148`
 
 Server:
 
     {
         "status": "ok",
-        "session": "7a33fceb",
-        "user": "88228b2"
+        "sid": "7a33fceb",
+        "uid": "88228b2"
     }
 
-Client 2:
-
-    {
-        "action": "pull",
-        "session": "7a33fceb",
-        "user": "88228b2"
-    }
+Client 2: `GET /pull?sid=7a33fceb&uid=88228b2`
 
 Server:
 
     {
         "status": "ok",
-        "data": "..."
+        "data": "...",
+        "revision": 1
     }
 
-Client 3:
-
-    {
-        "action": "pull"
-    }
+Client 3: GET /pull
 
 Server:
 
     {
         "status": "fail",
-        "error": "not authenticated"
     }
 
 ## Security
